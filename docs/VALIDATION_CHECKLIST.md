@@ -8,6 +8,10 @@
 
 ## Screens (milestone 2), on both platforms in airplane mode
 - [ ] Merge 3 PDFs, reorder, rotate and delete pages, then open the result in another viewer
+- [ ] Merge with photos: add PDFs and photos in one document, confirm each photo is one page in order
+- [ ] Merge: cancel the photo picker and the file picker; the screen stays open with its buttons
+- [ ] Images to PDF: take photos one after another with the camera and build one PDF
+- [ ] Images to PDF: deny camera permission and confirm a clear message, no crash
 - [ ] Extract "1-3, 5" and confirm the right pages
 - [ ] Split every 2 pages and by ranges; cancel a split midway and confirm no files remain
 - [ ] Images to PDF with portrait, landscape and transparent PNG images at each quality

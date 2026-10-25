@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/output_namer.dart';
@@ -51,6 +53,32 @@ abstract final class DocumentOpener {
       for (final file in files)
         PickedImage(file.name, await localPath(file, extension: p.extension(file.name))),
     ];
+  }
+
+  /// True where the system camera can be opened. Desktop builds have none.
+  static bool get cameraAvailable =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  /// Takes one photo with the camera and keeps a copy in app storage.
+  /// Returns null when the user closes the camera without a picture.
+  static Future<PickedImage?> takePhoto() async {
+    final shot = await ImagePicker().pickImage(source: ImageSource.camera);
+    if (shot == null) return null;
+    return _keepPhoto(shot.path);
+  }
+
+  /// Camera photos can live in a folder the system clears, so copy them.
+  static Future<PickedImage> _keepPhoto(String path) async {
+    final name = p.basename(path);
+    final extension = p.extension(name).isEmpty ? '.jpg' : p.extension(name);
+    final target = File(p.join(
+        AppServices.instance.importsDirectory.path,
+        '${DateTime.now().microsecondsSinceEpoch}-'
+        '${OutputNamer.sanitizeBaseName(p.basenameWithoutExtension(name))}$extension'));
+    await target.writeAsBytes(await File(path).readAsBytes(), flush: true);
+    return PickedImage(name, target.path);
   }
 
   /// A readable local path. Files without one are copied into app storage.

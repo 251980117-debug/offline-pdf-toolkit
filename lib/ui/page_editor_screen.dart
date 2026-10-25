@@ -13,6 +13,10 @@ import 'widgets/page_thumbnail.dart';
 
 enum EditorMode { merge, organize }
 
+enum _AddAction { files, photos }
+
+enum _PhotoSource { camera, gallery }
+
 /// Merge and Organize: one list of pages to reorder, rotate and delete.
 class PageEditorScreen extends StatefulWidget {
   const PageEditorScreen({super.key, required this.mode});
@@ -43,18 +47,76 @@ class _PageEditorScreenState extends State<PageEditorScreen> {
 
   Future<void> _addFiles({bool initial = false}) async {
     setState(() => _busy = true);
-    final picked = await DocumentOpener.pickPdfs(context, multiple: _isMerge);
-    if (!mounted) {
-      for (final item in picked) {
-        await item.document.close();
+    try {
+      final picked = await DocumentOpener.pickPdfs(context, multiple: _isMerge);
+      if (!mounted) {
+        for (final item in picked) {
+          await item.document.close();
+        }
+        return;
       }
-      return;
+      for (final item in picked) {
+        _session.addDocument(item.document, item.path);
+      }
+      if (initial && !_isMerge && _session.documents.isEmpty) Navigator.pop(context);
+    } on Object catch (error) {
+      if (mounted) showMessage(context, messageFor(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    for (final item in picked) {
-      _session.addDocument(item.document, item.path);
+  }
+
+  /// Photos become one-page documents, so they merge like any other file.
+  Future<void> _addPhotos() async {
+    final source = await _askPhotoSource();
+    if (source == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final List<PickedImage> photos;
+      if (source == _PhotoSource.camera) {
+        final shot = await DocumentOpener.takePhoto();
+        photos = [?shot];
+      } else {
+        photos = await DocumentOpener.pickImages();
+      }
+      for (final photo in photos) {
+        if (!mounted) return;
+        try {
+          final doc = await AppServices.instance.processing.openImage(photo.path);
+          _session.addDocument(doc, photo.path);
+        } on Object catch (error) {
+          if (mounted) showMessage(context, '${photo.name}: ${messageFor(error)}');
+        }
+      }
+    } on Object catch (error) {
+      if (mounted) showMessage(context, messageFor(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    setState(() => _busy = false);
-    if (initial && _session.documents.isEmpty) Navigator.pop(context);
+  }
+
+  Future<_PhotoSource?> _askPhotoSource() {
+    if (!DocumentOpener.cameraAvailable) return Future.value(_PhotoSource.gallery);
+    return showModalBottomSheet<_PhotoSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take photo'),
+              onTap: () => Navigator.pop(context, _PhotoSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.add_photo_alternate_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(context, _PhotoSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _guard(VoidCallback action) {
@@ -112,10 +174,32 @@ class _PageEditorScreenState extends State<PageEditorScreen> {
           title: Text(_isMerge ? 'Merge PDFs' : 'Organize pages'),
           actions: [
             if (_isMerge)
-              IconButton(
-                tooltip: 'Add PDFs',
+              PopupMenuButton<_AddAction>(
+                tooltip: 'Add files or photos',
+                enabled: !_busy,
                 icon: const Icon(Icons.note_add_outlined),
-                onPressed: _busy ? null : _addFiles,
+                onSelected: (action) => switch (action) {
+                  _AddAction.files => _addFiles(),
+                  _AddAction.photos => _addPhotos(),
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: _AddAction.files,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.picture_as_pdf_outlined),
+                      title: Text('Add PDF files'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: _AddAction.photos,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.photo_library_outlined),
+                      title: Text('Add photos'),
+                    ),
+                  ),
+                ],
               ),
           ],
         ),
@@ -123,6 +207,7 @@ class _PageEditorScreenState extends State<PageEditorScreen> {
           listenable: _session,
           builder: (context, _) {
             if (_session.documents.isEmpty) {
+              if (_isMerge && !_busy) return _emptyMerge();
               return const Center(child: CircularProgressIndicator());
             }
             return Column(
@@ -155,7 +240,7 @@ class _PageEditorScreenState extends State<PageEditorScreen> {
                     if (needsMore && _session.documents.isNotEmpty)
                       const Padding(
                         padding: EdgeInsets.only(bottom: 8),
-                        child: Text('Add at least one more PDF to merge.'),
+                        child: Text('Add at least one more file or photo to merge.'),
                       ),
                     SizedBox(
                       width: double.infinity,
@@ -170,6 +255,39 @@ class _PageEditorScreenState extends State<PageEditorScreen> {
               },
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyMerge() {
+    final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.merge_type, size: 56, color: scheme.primary),
+            const SizedBox(height: 16),
+            Text('Combine files into one PDF', style: text.titleMedium, textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text('Choose two or more PDFs or photos. Their pages join in the order you set.',
+                style: text.bodyMedium, textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('Add PDF files'),
+              onPressed: _busy ? null : _addFiles,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.photo_library_outlined),
+              label: const Text('Add photos'),
+              onPressed: _busy ? null : _addPhotos,
+            ),
+          ],
         ),
       ),
     );

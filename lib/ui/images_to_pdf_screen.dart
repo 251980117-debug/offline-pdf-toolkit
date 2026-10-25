@@ -7,6 +7,7 @@ import '../app/app_services.dart';
 import '../app/document_opener.dart';
 import '../core/image_sizing.dart';
 import '../engine/image_preparer.dart';
+import 'dialogs.dart';
 import 'job_runner.dart';
 import 'result_screen.dart';
 import 'save_flow.dart';
@@ -21,7 +22,7 @@ class ImagesToPdfScreen extends StatefulWidget {
 class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
   final List<PickedImage> _images = [];
   ImageQuality _quality = ImageQuality.balanced;
-  bool _loaded = false;
+  bool _picking = false;
 
   static const _qualityHelp = {
     ImageQuality.compact: 'Smallest file. Good for email and uploads.',
@@ -29,20 +30,31 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
     ImageQuality.high: 'Most detail. Larger file.',
   };
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _add(initial: true));
+  Future<void> _addImages() async {
+    setState(() => _picking = true);
+    try {
+      final picked = await DocumentOpener.pickImages();
+      if (!mounted || picked.isEmpty) return;
+      setState(() => _images.addAll(picked));
+    } catch (error) {
+      if (mounted) showMessage(context, messageFor(error));
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
   }
 
-  Future<void> _add({bool initial = false}) async {
-    final picked = await DocumentOpener.pickImages();
-    if (!mounted) return;
-    setState(() {
-      _images.addAll(picked);
-      _loaded = true;
-    });
-    if (initial && _images.isEmpty) Navigator.pop(context);
+  /// One photo at a time, so a whole stack of pages can be scanned in a row.
+  Future<void> _takePhoto() async {
+    setState(() => _picking = true);
+    try {
+      final photo = await DocumentOpener.takePhoto();
+      if (!mounted || photo == null) return;
+      setState(() => _images.add(photo));
+    } catch (error) {
+      if (mounted) showMessage(context, messageFor(error));
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
   }
 
   Future<void> _save() async {
@@ -78,80 +90,140 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
       appBar: AppBar(
         title: const Text('Images to PDF'),
         actions: [
+          if (DocumentOpener.cameraAvailable)
+            IconButton(
+              tooltip: 'Take photo',
+              icon: const Icon(Icons.photo_camera_outlined),
+              onPressed: _picking ? null : _takePhoto,
+            ),
           IconButton(
-              tooltip: 'Add images', icon: const Icon(Icons.add_photo_alternate_outlined), onPressed: _add),
+            tooltip: 'Choose images',
+            icon: const Icon(Icons.add_photo_alternate_outlined),
+            onPressed: _picking ? null : _addImages,
+          ),
         ],
       ),
-      body: !_loaded
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SegmentedButton<ImageQuality>(
-                        segments: const [
-                          ButtonSegment(value: ImageQuality.compact, label: Text('Compact')),
-                          ButtonSegment(value: ImageQuality.balanced, label: Text('Balanced')),
-                          ButtonSegment(value: ImageQuality.high, label: Text('High')),
-                        ],
-                        selected: {_quality},
-                        onSelectionChanged: (value) => setState(() => _quality = value.first),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(_qualityHelp[_quality]!, style: text.bodySmall),
-                      const SizedBox(height: 4),
-                      Text('One page per image. Drag to change the order.', style: text.bodySmall),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: ReorderableListView.builder(
-                    itemCount: _images.length,
-                    onReorderItem: (from, to) => setState(() {
-                      final item = _images.removeAt(from);
-                      _images.insert(to, item);
-                    }),
-                    itemBuilder: (context, index) {
-                      final image = _images[index];
-                      return ListTile(
-                        key: ValueKey(image.path),
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.file(File(image.path),
-                              width: 56,
-                              height: 56,
-                              fit: BoxFit.cover,
-                              cacheWidth: 112,
-                              errorBuilder: (_, _, _) => const SizedBox(
-                                  width: 56, height: 56, child: Icon(Icons.broken_image_outlined))),
-                        ),
-                        title: Text('Page ${index + 1}'),
-                        subtitle: Text(image.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        trailing: IconButton(
-                          tooltip: 'Remove',
-                          icon: const Icon(Icons.close),
-                          onPressed: () => setState(() => _images.removeAt(index)),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+      body: _images.isEmpty ? _empty(text) : _list(text),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: FilledButton.icon(
             icon: const Icon(Icons.save_outlined),
-            label: Text(_images.length < 2 ? 'Create PDF' : 'Create PDF with ${_images.length} pages'),
-            onPressed: _images.isEmpty ? null : _save,
+            label: Text(_images.length < 2
+                ? 'Create PDF'
+                : 'Create PDF with ${_images.length} pages'),
+            onPressed: _images.isEmpty || _picking ? null : _save,
           ),
         ),
       ),
+    );
+  }
+
+  Widget _empty(TextTheme text) {
+    final scheme = Theme.of(context).colorScheme;
+    final camera = DocumentOpener.cameraAvailable;
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.image_outlined, size: 56, color: scheme.primary),
+            const SizedBox(height: 16),
+            Text('Turn photos into a PDF', style: text.titleMedium, textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text(
+              camera
+                  ? 'Take one photo at a time, or choose pictures you already have. '
+                      'Each picture becomes one page.'
+                  : 'Choose the pictures you want. Each picture becomes one page.',
+              style: text.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            if (camera)
+              FilledButton.icon(
+                icon: const Icon(Icons.photo_camera_outlined),
+                label: const Text('Take photo'),
+                onPressed: _picking ? null : _takePhoto,
+              ),
+            if (camera) const SizedBox(height: 8),
+            if (camera)
+              OutlinedButton.icon(
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+                label: const Text('Choose images'),
+                onPressed: _picking ? null : _addImages,
+              )
+            else
+              FilledButton.icon(
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+                label: const Text('Choose images'),
+                onPressed: _picking ? null : _addImages,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _list(TextTheme text) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SegmentedButton<ImageQuality>(
+                segments: const [
+                  ButtonSegment(value: ImageQuality.compact, label: Text('Compact')),
+                  ButtonSegment(value: ImageQuality.balanced, label: Text('Balanced')),
+                  ButtonSegment(value: ImageQuality.high, label: Text('High')),
+                ],
+                selected: {_quality},
+                onSelectionChanged: (value) => setState(() => _quality = value.first),
+              ),
+              const SizedBox(height: 8),
+              Text(_qualityHelp[_quality]!, style: text.bodySmall),
+              const SizedBox(height: 4),
+              Text('One page per image. Drag to change the order.', style: text.bodySmall),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: ReorderableListView.builder(
+            itemCount: _images.length,
+            onReorderItem: (from, to) => setState(() {
+              final item = _images.removeAt(from);
+              _images.insert(to, item);
+            }),
+            itemBuilder: (context, index) {
+              final image = _images[index];
+              return ListTile(
+                key: ValueKey(image.path),
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Image.file(File(image.path),
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      cacheWidth: 112,
+                      errorBuilder: (_, _, _) => const SizedBox(
+                          width: 56, height: 56, child: Icon(Icons.broken_image_outlined))),
+                ),
+                title: Text('Page ${index + 1}'),
+                subtitle: Text(image.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                trailing: IconButton(
+                  tooltip: 'Remove',
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() => _images.removeAt(index)),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

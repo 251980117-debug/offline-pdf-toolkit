@@ -1,6 +1,6 @@
 # Offline PDF Toolkit
 
-Version 0.2: processing engine plus connected screens.
+Version 0.3: processing engine plus connected screens, with camera capture.
 All document processing happens on the device.
 
 ## Requirements
@@ -26,9 +26,9 @@ flutter run -d <device-id>                              # the app
 
 ## Screens
 - Home: tools, privacy notice, recent files
-- Merge PDFs and Organize pages: reorder by dragging, select, rotate, delete
+- Merge PDFs and Organize pages: reorder by dragging, select, rotate, delete. Merge also takes photos
 - Extract pages and Split PDF: page ranges with live validation and a summary
-- Images to PDF: order images and choose Compact, Balanced or High quality
+- Images to PDF: take photos one at a time or choose pictures, order them and pick a quality
 - Result: preview, share, and save to device
 - Privacy and about: what happens to files, limits, open-source licenses
 

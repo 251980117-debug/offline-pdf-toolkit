@@ -27,6 +27,7 @@ class FakeDoc implements OpenedPdf {
 class FakeEngine implements PdfEngine {
   final Map<String, FakeDoc> files = {};
   final List<FakeDoc> created = [];
+  final List<String> createdNames = [];
   int dropLastPages = 0;
   bool distortSizes = false;
   Object? encodeError;
@@ -47,6 +48,7 @@ class FakeEngine implements PdfEngine {
       {required PageSize pageSize, required String displayName}) async {
     final doc = FakeDoc('img-${_next++}', [pageSize]);
     created.add(doc);
+    createdNames.add(displayName);
     return doc;
   }
 

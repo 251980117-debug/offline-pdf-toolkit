@@ -45,6 +45,19 @@ class ProcessingService {
     return doc;
   }
 
+  /// Opens a photo as a one-page document so it can be merged with PDFs.
+  /// The caller owns the document and must close it.
+  Future<OpenedPdf> openImage(String path,
+      {ImageQuality quality = ImageQuality.balanced}) async {
+    final prepared =
+        await ImagePreparer.prepare(await File(path).readAsBytes(), quality);
+    return engine.createFromJpeg(
+      prepared.jpegBytes,
+      pageSize: ImageSizing.pageFor(prepared.size),
+      displayName: p.basename(path),
+    );
+  }
+
   Future<WriteResult> writePlan({
     required PagePlan plan,
     required Map<String, OpenedPdf> sources,

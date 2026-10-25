@@ -68,8 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisSpacing: 12,
             childAspectRatio: 1.3,
             children: [
-              _ToolCard(Icons.merge_type, 'Merge PDFs', 'Combine files into one',
-                  () => _open(const PageEditorScreen(mode: EditorMode.merge))),
+              _ToolCard(Icons.merge_type, 'Merge PDFs', 'PDFs and photos', () => _open(const PageEditorScreen(mode: EditorMode.merge))),
               _ToolCard(Icons.view_agenda_outlined, 'Organize pages', 'Reorder, rotate, delete',
                   () => _open(const PageEditorScreen(mode: EditorMode.organize))),
               _ToolCard(Icons.file_copy_outlined, 'Extract pages', 'Save selected pages',
