@@ -34,6 +34,13 @@ class FakeEngine implements PdfEngine {
   int encodeCalls = 0;
   int _next = 0;
 
+  /// Every [renderPageAsJpeg] call, in order.
+  final List<({String documentId, int pageIndex, double scale, int jpegQuality})>
+      renderCalls = [];
+
+  /// When set, [renderPageAsJpeg] throws this instead of returning bytes.
+  Object? renderError;
+
   @override
   Future<OpenedPdf> openFile(String path, {String? password}) async {
     final doc = files[path];
@@ -75,5 +82,20 @@ class FakeEngine implements PdfEngine {
       for (final line in lines.skip(1))
         PageSize(double.parse(line.split(',')[0]), double.parse(line.split(',')[1])),
     ];
+  }
+
+  @override
+  Future<Uint8List> renderPageAsJpeg(OpenedPdf document, int pageIndex,
+      {required double scale, int jpegQuality = 85}) async {
+    renderCalls.add((
+      documentId: document.id,
+      pageIndex: pageIndex,
+      scale: scale,
+      jpegQuality: jpegQuality,
+    ));
+    final error = renderError;
+    if (error != null) throw error;
+    return Uint8List.fromList(
+        utf8.encode('FAKEJPEG:${document.id}:$pageIndex:$scale'));
   }
 }

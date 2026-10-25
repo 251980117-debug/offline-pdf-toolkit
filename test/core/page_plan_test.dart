@@ -36,7 +36,59 @@ void main() {
     expect(() => PagePlan([]).validateAgainst({'a': doc('a', 3)}), throwsPlan(PlanErrorCode.emptyResult));
   });
 
+  test('duplicates selected pages right after their originals', () {
+    final result = plan.duplicatePositions({0, 2});
+    expect(result.plan.pages, refs('a', [0, 0, 1, 2, 2]));
+    expect(result.copies, {1, 4});
+  });
+
+  test('keeps every original page exactly once more', () {
+    final once = plan.duplicatePositions({1});
+    expect(once.plan.pages, refs('a', [0, 1, 1, 2]));
+    final counted = <PageRef, int>{};
+    for (final ref in once.plan.pages) {
+      counted[ref] = (counted[ref] ?? 0) + 1;
+    }
+    expect(counted[const PageRef('a', 1)], 2, reason: 'the selected page gains one copy');
+    expect(counted[const PageRef('a', 0)], 1, reason: 'unselected pages are untouched');
+    expect(counted[const PageRef('a', 2)], 1);
+    expect(plan.duplicatePositions({0, 1, 2}).plan.pages, refs('a', [0, 0, 1, 1, 2, 2]));
+  });
+
+  test('reports the positions of the copies', () {
+    final result = plan.duplicatePositions({0, 2});
+    expect(result.copies, isNotEmpty);
+    for (final copy in result.copies) {
+      expect(result.plan.pages[copy], result.plan.pages[copy - 1],
+          reason: 'each copy sits directly after its original');
+    }
+    final copies = result.copies.toList()..sort();
+    expect(result.plan.pages[copies.first], plan.pages[0],
+        reason: 'the first copy repeats the first original');
+    expect(result.plan.pages[copies.last], plan.pages[2],
+        reason: 'the last copy repeats the last original');
+  });
+
+  test('rejects an empty selection', () {
+    expect(() => plan.duplicatePositions({}), throwsPlan(PlanErrorCode.emptySelection));
+  });
+
+  test('rejects positions outside the plan', () {
+    expect(() => plan.duplicatePositions({plan.length}),
+        throwsPlan(PlanErrorCode.pageOutOfRange));
+    expect(() => plan.duplicatePositions({-1}), throwsPlan(PlanErrorCode.pageOutOfRange));
+  });
+
+  test('duplicates a whole document through PageOperations', () {
+    final result = PageOperations.duplicate(doc('a', 3), {0, 2});
+    expect(result.plan.pages, refs('a', [0, 0, 1, 2, 2]));
+    expect(result.copies, {1, 4});
+  });
+
   test('cannot be modified from outside', () {
     expect(() => plan.pages.add(const PageRef('a', 0)), throwsUnsupportedError);
+    final duplicated = plan.duplicatePositions({0});
+    expect(() => duplicated.plan.pages.add(const PageRef('a', 0)), throwsUnsupportedError);
+    expect(() => duplicated.copies.add(plan.length), throwsUnsupportedError);
   });
 }

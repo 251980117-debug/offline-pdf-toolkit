@@ -5,11 +5,13 @@ import 'package:path/path.dart' as p;
 
 import '../app/app_services.dart';
 import 'about_screen.dart';
+import 'compress_screen.dart';
 import 'dialogs.dart';
 import 'extract_split_screen.dart';
 import 'format.dart';
 import 'images_to_pdf_screen.dart';
 import 'page_editor_screen.dart';
+import 'pdf_images_screen.dart';
 import 'result_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -68,14 +70,19 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisSpacing: 12,
             childAspectRatio: 1.3,
             children: [
-              _ToolCard(Icons.merge_type, 'Merge PDFs', 'PDFs and photos', () => _open(const PageEditorScreen(mode: EditorMode.merge))),
-              _ToolCard(Icons.view_agenda_outlined, 'Organize pages', 'Reorder, rotate, delete',
+              _ToolCard(Icons.upload_file_outlined, 'Open a PDF', 'View and edit its pages',
                   () => _open(const PageEditorScreen(mode: EditorMode.organize))),
+              _ToolCard(Icons.merge_type, 'Merge PDFs', 'PDFs and photos',
+                  () => _open(const PageEditorScreen(mode: EditorMode.merge))),
+              _ToolCard(Icons.compress, 'Compress PDF', 'Make the file smaller',
+                  () => _open(const CompressScreen())),
+              _ToolCard(Icons.image_outlined, 'PDF to Images', 'Save pages as JPG',
+                  () => _open(const PdfImagesScreen())),
               _ToolCard(Icons.file_copy_outlined, 'Extract pages', 'Save selected pages',
                   () => _open(const ExtractSplitScreen(mode: PageToolMode.extract))),
               _ToolCard(Icons.call_split, 'Split PDF', 'Into several files',
                   () => _open(const ExtractSplitScreen(mode: PageToolMode.split))),
-              _ToolCard(Icons.image_outlined, 'Images to PDF', 'Photos and scans',
+              _ToolCard(Icons.photo_library_outlined, 'Images to PDF', 'Photos and scans',
                   () => _open(const ImagesToPdfScreen())),
             ],
           ),

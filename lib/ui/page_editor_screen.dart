@@ -19,9 +19,13 @@ enum _PhotoSource { camera, gallery }
 
 /// Merge and Organize: one list of pages to reorder, rotate and delete.
 class PageEditorScreen extends StatefulWidget {
-  const PageEditorScreen({super.key, required this.mode});
+  const PageEditorScreen({super.key, required this.mode, this.initialFiles = const []});
 
   final EditorMode mode;
+
+  /// Files to open straight away, so a PDF can go from the file list into the
+  /// editor without another picker.
+  final List<String> initialFiles;
 
   @override
   State<PageEditorScreen> createState() => _PageEditorScreenState();
@@ -36,7 +40,8 @@ class _PageEditorScreenState extends State<PageEditorScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _addFiles(initial: true));
+    WidgetsBinding.instance.addPostFrameCallback((_) =>
+        widget.initialFiles.isEmpty ? _addFiles(initial: true) : _openInitial());
   }
 
   @override
@@ -59,6 +64,41 @@ class _PageEditorScreenState extends State<PageEditorScreen> {
         _session.addDocument(item.document, item.path);
       }
       if (initial && !_isMerge && _session.documents.isEmpty) Navigator.pop(context);
+    } on Object catch (error) {
+      if (mounted) showMessage(context, messageFor(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Opens the files passed in, for "Open a PDF" and "Edit pages".
+  Future<void> _openInitial() async {
+    setState(() => _busy = true);
+    try {
+      for (final path in widget.initialFiles) {
+        final doc = await DocumentOpener.openPath(context, path);
+        if (!mounted) {
+          await doc?.close();
+          return;
+        }
+        if (doc != null) _session.addDocument(doc, path);
+      }
+      if (mounted && _session.documents.isEmpty) Navigator.pop(context);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Adds one blank A4 page at the end, to be dragged where it is needed.
+  Future<void> _addBlankPage() async {
+    setState(() => _busy = true);
+    try {
+      final doc = await AppServices.instance.processing.blankPage();
+      if (!mounted) {
+        await doc.close();
+        return;
+      }
+      _session.addDocument(doc);
     } on Object catch (error) {
       if (mounted) showMessage(context, messageFor(error));
     } finally {
@@ -201,6 +241,11 @@ class _PageEditorScreenState extends State<PageEditorScreen> {
                   ),
                 ],
               ),
+            IconButton(
+              tooltip: 'Add blank page',
+              icon: const Icon(Icons.post_add),
+              onPressed: _busy ? null : _addBlankPage,
+            ),
           ],
         ),
         body: ListenableBuilder(
@@ -219,6 +264,7 @@ class _PageEditorScreenState extends State<PageEditorScreen> {
                   onClear: _session.clearSelection,
                   onRotateLeft: () => _guard(() => _session.rotateSelected(QuarterTurn.clockwise270)),
                   onRotateRight: () => _guard(() => _session.rotateSelected(QuarterTurn.clockwise90)),
+                  onDuplicate: () => _guard(_session.duplicateSelected),
                   onDelete: () => _guard(_session.deleteSelected),
                 ),
                 const Divider(height: 1),
@@ -327,6 +373,7 @@ class _Toolbar extends StatelessWidget {
     required this.onClear,
     required this.onRotateLeft,
     required this.onRotateRight,
+    required this.onDuplicate,
     required this.onDelete,
   });
 
@@ -336,6 +383,7 @@ class _Toolbar extends StatelessWidget {
   final VoidCallback onClear;
   final VoidCallback onRotateLeft;
   final VoidCallback onRotateRight;
+  final VoidCallback onDuplicate;
   final VoidCallback onDelete;
 
   @override
@@ -358,6 +406,10 @@ class _Toolbar extends StatelessWidget {
               tooltip: 'Rotate right',
               icon: const Icon(Icons.rotate_right),
               onPressed: hasSelection ? onRotateRight : null),
+          IconButton(
+              tooltip: 'Duplicate pages',
+              icon: const Icon(Icons.content_copy),
+              onPressed: hasSelection ? onDuplicate : null),
           IconButton(
               tooltip: 'Delete pages',
               icon: const Icon(Icons.delete_outline),

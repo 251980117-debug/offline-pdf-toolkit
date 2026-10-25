@@ -47,6 +47,12 @@ abstract final class DocumentOpener {
     return picked;
   }
 
+  /// Opens a file that is already on the device, asking for a password when
+  /// one is needed. Returns null when it cannot be opened.
+  static Future<OpenedPdf?> openPath(BuildContext context, String path,
+          {String? name}) =>
+      _openWithPassword(context, path, name ?? p.basename(path));
+
   static Future<List<PickedImage>> pickImages() async {
     final files = await FilePicker.pickFiles(type: FileType.image);
     return [

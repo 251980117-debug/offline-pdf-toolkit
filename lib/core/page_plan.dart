@@ -100,6 +100,23 @@ class PagePlan {
     ]);
   }
 
+  /// Copies each selected position, inserting the copy right after the original.
+  /// The result keeps every page, and the returned pair tells the caller which
+  /// positions are the new copies so the selection can move to them.
+  DuplicatedPages duplicatePositions(Set<int> positions) {
+    final selected = _checkPositions(positions);
+    final list = <PageRef>[];
+    final copies = <int>{};
+    for (var i = 0; i < pages.length; i++) {
+      list.add(pages[i]);
+      if (selected.contains(i)) {
+        list.add(pages[i]);
+        copies.add(list.length - 1);
+      }
+    }
+    return DuplicatedPages(PagePlan(list), copies);
+  }
+
   PagePlan rotateAll(QuarterTurn turn) =>
       PagePlan(pages.map((page) => page.rotatedBy(turn)));
 
@@ -127,4 +144,16 @@ class PagePlan {
     }
     return selected;
   }
+}
+
+/// The plan after duplication, plus the positions of the inserted copies.
+/// Immutable: [copies] is unmodifiable, like [PagePlan.pages].
+class DuplicatedPages {
+  DuplicatedPages(this.plan, Iterable<int> copies)
+      : copies = Set.unmodifiable(copies);
+
+  final PagePlan plan;
+
+  /// Positions of the inserted copies in [plan].
+  final Set<int> copies;
 }

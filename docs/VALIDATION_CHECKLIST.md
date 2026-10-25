@@ -7,6 +7,14 @@
 - [ ] 300-page benchmark time and memory recorded on a low-end Android phone
 
 ## Screens (milestone 2), on both platforms in airplane mode
+- [ ] Open a PDF from Home and edit it; save a copy and confirm the original is unchanged
+- [ ] From a result or a recent file, "Edit pages" opens the same editor with that PDF
+- [ ] Duplicate a page and add a blank page, drag them into place, then save
+- [ ] Compress a scanned PDF at each level; confirm the result is smaller and opens in another viewer
+- [ ] Compress a text-heavy PDF and confirm the "no gain" message when the copy is not smaller
+- [ ] PDF to Images: export a 3-page PDF, confirm page-001.jpg and friends are in page order, then share them
+- [ ] Cancel a PDF to Images export midway and confirm no JPG files remain
+- [ ] App name reads "Offline PDF Toolkit" on the home screen and in system settings, with the new icon
 - [ ] Merge 3 PDFs, reorder, rotate and delete pages, then open the result in another viewer
 - [ ] Merge with photos: add PDFs and photos in one document, confirm each photo is one page in order
 - [ ] Merge: cancel the photo picker and the file picker; the screen stays open with its buttons

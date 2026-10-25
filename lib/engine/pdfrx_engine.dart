@@ -6,6 +6,7 @@ import '../core/page_plan.dart';
 import '../core/page_size.dart';
 import '../core/quarter_turn.dart';
 import 'engine_exception.dart';
+import 'page_renderer.dart';
 import 'pdf_engine.dart';
 
 /// [PdfEngine] backed by pdfrx (PDFium). Call [initialize] once at startup.
@@ -93,6 +94,45 @@ class PdfrxEngine implements PdfEngine {
       return [for (final page in doc.pages) PageSize(page.width, page.height)];
     } finally {
       await Future.sync(doc.dispose);
+    }
+  }
+
+  @override
+  Future<Uint8List> renderPageAsJpeg(OpenedPdf document, int pageIndex,
+      {required double scale, int jpegQuality = 85}) async {
+    if (document is! _PdfrxOpened) {
+      throw ArgumentError('Document was not opened by this engine.');
+    }
+    final page = document.document.pages[pageIndex];
+    PdfImage? image;
+    try {
+      // [fullWidth]/[fullHeight] are the rendered pixel dimensions; 1.0 = 72 dpi.
+      image = await page.render(
+        fullWidth: page.width * scale,
+        fullHeight: page.height * scale,
+      );
+      final jpeg = image == null
+          ? null
+          : PageRenderer.encodeJpeg(
+              RenderedPixels(
+                pixels: image.pixels,
+                width: image.width,
+                height: image.height,
+                channels: 4, // PDFium renders BGRA8888.
+              ),
+              quality: jpegQuality,
+            );
+      if (jpeg == null) {
+        throw const EngineException(
+            EngineErrorCode.encodeFailed, 'The page produced no pixels.');
+      }
+      return jpeg;
+    } on Exception catch (e) {
+      throw EngineException(EngineErrorCode.encodeFailed,
+          'Page ${pageIndex + 1} could not be rendered.',
+          cause: e);
+    } finally {
+      image?.dispose();
     }
   }
 

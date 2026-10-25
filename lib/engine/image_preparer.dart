@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 import '../core/image_sizing.dart';
+import '../core/page_size.dart';
 import 'engine_exception.dart';
 
 class PreparedImage {
@@ -45,5 +46,15 @@ abstract final class ImagePreparer {
       jpegBytes: img.encodeJpg(image, quality: quality.jpegQuality),
       size: PixelSize(image.width, image.height),
     );
+  }
+
+  /// A plain white page as JPEG bytes, so a blank page can be inserted into a
+  /// document like any other one-page file.
+  static Uint8List blankJpeg(PageSize size, {int dpi = 150}) {
+    final width = (size.width / 72 * dpi).round().clamp(1, 20000);
+    final height = (size.height / 72 * dpi).round().clamp(1, 20000);
+    final canvas = img.Image(width: width, height: height);
+    img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
+    return img.encodeJpg(canvas, quality: 85);
   }
 }

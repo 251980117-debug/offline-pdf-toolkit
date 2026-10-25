@@ -38,4 +38,9 @@ abstract interface class PdfEngine {
 
   /// Reopens finished bytes and reports their page sizes, for verification.
   Future<List<PageSize>> readPageSizes(Uint8List pdfBytes);
+
+  /// Renders one page to JPEG bytes at [scale] (1.0 = 72 dpi). Used to
+  /// re-encode pages for compression and image export. Must not modify the source.
+  Future<Uint8List> renderPageAsJpeg(OpenedPdf document, int pageIndex,
+      {required double scale, int jpegQuality = 85});
 }

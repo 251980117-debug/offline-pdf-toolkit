@@ -41,6 +41,10 @@ abstract final class PageOperations {
     ]);
   }
 
+  /// Whole document with each selected page copied right after its original.
+  static DuplicatedPages duplicate(SourceDocument source, Set<int> positions) =>
+      wholeDocument(source).duplicatePositions(positions);
+
   /// [newOrder] must list every zero-based page index exactly once.
   static PagePlan reorder(SourceDocument source, List<int> newOrder) {
     final valid = newOrder.length == source.pageCount &&

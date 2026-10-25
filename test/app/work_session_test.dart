@@ -53,4 +53,19 @@ void main() {
     session.dispose();
     expect(a.closed && b.closed, isTrue);
   });
+
+  test('duplicates the selected pages and selects the copies', () {
+    session.toggle(1);
+    session.duplicateSelected();
+    expect(session.plan.pages,
+        [...refs('a', [0, 1]), ...refs('a', [1]), ...refs('b', [0])]);
+    expect(session.selected, {2});
+  });
+
+  test('a document without a file is not treated as a source', () {
+    final blank = FakeDoc('blank', const [PageSize.a4]);
+    session.addDocument(blank);
+    expect(session.plan.length, 4);
+    expect(session.sourcePaths, ['/files/a.pdf', '/files/b.pdf']);
+  });
 }

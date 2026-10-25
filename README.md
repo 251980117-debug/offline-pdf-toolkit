@@ -1,6 +1,6 @@
 # Offline PDF Toolkit
 
-Version 0.3: processing engine plus connected screens, with camera capture.
+Version 0.4: open and edit any PDF, compress, and export pages as images.
 All document processing happens on the device.
 
 ## Requirements
@@ -26,7 +26,10 @@ flutter run -d <device-id>                              # the app
 
 ## Screens
 - Home: tools, privacy notice, recent files
-- Merge PDFs and Organize pages: reorder by dragging, select, rotate, delete. Merge also takes photos
+- Open a PDF (and "Edit pages" from a result): reorder by dragging, select, rotate, duplicate, delete, add a blank page
+- Merge PDFs: the same editor, and it also takes photos
+- Compress PDF: re-draws each page at Compact, Balanced or High to make the file smaller
+- PDF to Images: saves every page as its own JPG, in page order
 - Extract pages and Split PDF: page ranges with live validation and a summary
 - Images to PDF: take photos one at a time or choose pictures, order them and pick a quality
 - Result: preview, share, and save to device

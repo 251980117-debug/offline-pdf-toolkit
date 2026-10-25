@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'dialogs.dart';
 import 'format.dart';
+import 'page_editor_screen.dart';
 
 /// Preview, share and export finished PDFs.
 class ResultScreen extends StatelessWidget {
@@ -36,6 +37,18 @@ class ResultScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(single == null ? '${files.length} files created' : p.basename(single.path)),
+        actions: [
+          if (single != null)
+            IconButton(
+              tooltip: 'Edit pages',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => PageEditorScreen(
+                          mode: EditorMode.organize, initialFiles: [single.path]))),
+            ),
+        ],
       ),
       body: Column(
         children: [

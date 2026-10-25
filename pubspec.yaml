@@ -1,7 +1,7 @@
 name: offline_pdf_toolkit
 description: Offline PDF Toolkit. All document processing happens on the device.
 publish_to: 'none'
-version: 0.3.0+1
+version: 0.4.0+1
 
 environment:
   sdk: ^3.13.0

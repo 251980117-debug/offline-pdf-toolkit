@@ -27,9 +27,9 @@ class WorkSession extends ChangeNotifier {
   OpenedPdf documentOf(PageRef ref) =>
       _documents.firstWhere((doc) => doc.id == ref.sourceId);
 
-  void addDocument(OpenedPdf doc, String path) {
+  void addDocument(OpenedPdf doc, [String? path]) {
     _documents.add(doc);
-    _paths[doc.id] = path;
+    if (path != null) _paths[doc.id] = path;
     _plan = _plan.followedBy(PageOperations.wholeDocument(doc.toSource()));
     notifyListeners();
   }
@@ -65,6 +65,17 @@ class WorkSession extends ChangeNotifier {
 
   void rotateSelected(QuarterTurn turn) {
     _plan = _plan.rotatePositions(_selected, turn);
+    notifyListeners();
+  }
+
+  /// Copies the selected pages and selects the new copies, so they can be
+  /// moved or rotated straight away.
+  void duplicateSelected() {
+    final result = _plan.duplicatePositions(_selected);
+    _plan = result.plan;
+    _selected
+      ..clear()
+      ..addAll(result.copies);
     notifyListeners();
   }
 

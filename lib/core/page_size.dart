@@ -4,6 +4,9 @@ import 'quarter_turn.dart';
 class PageSize {
   const PageSize(this.width, this.height);
 
+  /// ISO A4, the page a new blank page uses.
+  static const PageSize a4 = PageSize(595.28, 841.89);
+
   final double width;
   final double height;
 

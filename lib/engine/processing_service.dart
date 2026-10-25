@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
+import '../core/compress_level.dart';
 import '../core/image_sizing.dart';
 import '../core/page_plan.dart';
 import '../core/page_size.dart';
@@ -57,6 +58,12 @@ class ProcessingService {
       displayName: p.basename(path),
     );
   }
+
+  /// Opens a blank white page as a one-page document, so the editor can insert
+  /// it into a document. The caller owns the document and must close it.
+  Future<OpenedPdf> blankPage({PageSize size = PageSize.a4}) =>
+      engine.createFromJpeg(ImagePreparer.blankJpeg(size),
+          pageSize: size, displayName: 'Blank page');
 
   Future<WriteResult> writePlan({
     required PagePlan plan,
@@ -125,6 +132,50 @@ class ProcessingService {
       }
       return await writePlan(
         plan: PagePlan(opened.map((doc) => PageRef(doc.id, 0))),
+        sources: {for (final doc in opened) doc.id: doc},
+        destination: destination,
+        cancellation: token,
+      );
+    } finally {
+      for (final doc in opened) {
+        await doc.close();
+      }
+    }
+  }
+
+  /// Rasterizes every page and rebuilds the PDF, so it gets smaller but
+  /// selectable text is lost. Good for scans and photos.
+  Future<WriteResult> compress({
+    required OpenedPdf source,
+    required CompressLevel level,
+    required File destination,
+    required String sourcePath,
+    bool allowRemovingPasswordProtection = false,
+    CancellationToken? cancellation,
+  }) async {
+    final token = cancellation ?? CancellationToken();
+    token.throwIfCancelled();
+    if (source.wasPasswordProtected && !allowRemovingPasswordProtection) {
+      throw const EngineException(EngineErrorCode.protectionWouldBeRemoved,
+          'This document is password protected. The new copy will not have a '
+          'password. Confirm to continue.');
+    }
+    await _checkDestination(destination, [sourcePath]);
+
+    // One page at a time, so all rendered buffers are never held at once.
+    final opened = <OpenedPdf>[];
+    try {
+      for (var i = 0; i < source.pageSizes.length; i++) {
+        token.throwIfCancelled();
+        final jpeg = await engine.renderPageAsJpeg(source, i,
+            scale: level.scale, jpegQuality: level.jpegQuality);
+        // The source size keeps the geometry identical after compression.
+        opened.add(await engine.createFromJpeg(jpeg,
+            pageSize: source.pageSizes[i],
+            displayName: '${source.displayName} p${i + 1}'));
+      }
+      return await writePlan(
+        plan: PagePlan([for (final doc in opened) PageRef(doc.id, 0)]),
         sources: {for (final doc in opened) doc.id: doc},
         destination: destination,
         cancellation: token,
